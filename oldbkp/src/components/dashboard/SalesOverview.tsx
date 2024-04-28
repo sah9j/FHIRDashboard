@@ -4,10 +4,119 @@ import { useTheme } from '@mui/material/styles';
 import DashboardCard from '../../../src/components/shared/DashboardCard';
 import dynamic from "next/dynamic";
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
+import { useState, useEffect } from 'react';
+
+interface Patient {
+    id: string;
+    name: {
+      family: string;
+      given: string[];
+    }[];
+    gender: string;
+  }
 
 
-const SalesOverview = () => {
+const PatientChart:React.FC = () => {
+    const [patients, setPatients] = useState<Patient[]>([]);
 
+    const [genderCounts, setGenderCounts] = useState<{ maleCount: number, femaleCount: number, otherCount: number }>({
+      maleCount: 0,
+      femaleCount: 0,
+      otherCount: 0,
+  });
+
+  useEffect(() => {
+    async function fetchPatientData() {
+        try {
+            const response = await fetch('http://localhost:8080/fhir/Patient');
+            if (!response.ok) {
+                console.log("Failed to fetch patient data")
+                throw new Error('Failed to fetch patient data');
+            }
+            const data = await response.json();
+
+            console.log(data)
+
+            // Check if data and data.entry are defined
+          if (!data|| !data.entry) {
+            console.error('Data structure is not as expected');
+            return;
+          }
+
+            // Process patient data to count genders
+            let maleCount = 0;
+            let femaleCount = 0;
+            let otherCount = 0;
+
+            data.entry.forEach((entry: any) => {
+                const patient = entry.resource;
+                if (patient.gender === 'male') {
+                    maleCount++;
+                } else if (patient.gender === 'female') {
+                    femaleCount++;
+                } else {
+                    otherCount++;
+                }
+            });
+
+            // Set the gender counts
+            setGenderCounts({ maleCount, femaleCount, otherCount });
+        } catch (error) {
+            console.error('An error occurred:', error);
+        }
+    }
+
+    // Fetch patient data when the component mounts
+    fetchPatientData();
+  }, []);
+
+  /* useEffect(() => {
+    fetch('http://localhost:8080/fhir/Patient/')
+      .then(response => response.json())
+      .then((data: { entry: { resource: Patient }[] }) => {
+        setPatients(data.entry.map(entry => entry.resource));
+      })
+      .catch(error => console.error('Error fetching patients:', error));
+  }, []); */
+
+  // Prepare data for the chart
+  const chartOptions = {
+    chart: {
+      type: 'bar' as const,
+    },
+    xaxis: {
+      categories: ["Male","Female","Other"],
+    },
+  };
+
+
+  // Data and options for Chart.js
+  const chartData = {
+    labels: ['Male', 'Female', 'Other'],
+    datasets: [
+        {
+            label: 'Gender Counts',
+            data: [genderCounts.maleCount, genderCounts.femaleCount, genderCounts.otherCount],
+            backgroundColor: ['blue', 'pink', 'gray']
+        }
+    ]
+  };
+
+  const chartSeries = [
+    {
+      name: 'Number of Patients',
+      data: [genderCounts.maleCount, genderCounts.femaleCount, genderCounts.otherCount],
+    },
+  ];
+
+  return (
+    <div>
+      <h1>Patient Chart</h1>
+      {/* <Chart options={chartOptions} series={chartSeries} type="bar" height={400} /> */}
+      <Chart options={chartOptions} series={chartSeries} type="bar" height={400} />
+    </div>
+  );
+/* 
     // select
     const [month, setMonth] = React.useState('1');
 
@@ -111,7 +220,7 @@ const SalesOverview = () => {
                 height="370px"
             />
         </DashboardCard>
-    );
+    ); */
 };
 
-export default SalesOverview;
+export default PatientChart;

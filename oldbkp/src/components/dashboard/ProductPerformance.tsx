@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Typography, Box,
     Table,
@@ -6,54 +6,55 @@ import {
     TableCell,
     TableHead,
     TableRow,
-    Chip
+    Chip,
+    Modal,
+    Paper
 } from '@mui/material';
 import DashboardCard from '../../../src/components/shared/DashboardCard';
 
-const products = [
-    {
-        id: "1",
-        name: "Sunil Joshi",
-        post: "Web Designer",
-        pname: "Elite Admin",
-        priority: "Low",
-        pbg: "primary.main",
-        budget: "3.9",
-    },
-    {
-        id: "2",
-        name: "Andrew McDownland",
-        post: "Project Manager",
-        pname: "Real Homes WP Theme",
-        priority: "Medium",
-        pbg: "secondary.main",
-        budget: "24.5",
-    },
-    {
-        id: "3",
-        name: "Christopher Jamil",
-        post: "Project Manager",
-        pname: "MedicalPro WP Theme",
-        priority: "High",
-        pbg: "error.main",
-        budget: "12.8",
-    },
-    {
-        id: "4",
-        name: "Nirav Joshi",
-        post: "Frontend Engineer",
-        pname: "Hosting Press HTML",
-        priority: "Critical",
-        pbg: "success.main",
-        budget: "2.4",
-    },
-];
-
+interface Product {
+    id: string;
+    language: string | null;
+    status: string | null;
+    // Add more properties as needed
+}
 
 const ProductPerformance = () => {
-    return (
+    const [products, setProducts] = useState<Product[]>([]);
+    const [openModal, setOpenModal] = useState<boolean>(false);
 
-        <DashboardCard title="Product Performance">
+    useEffect(() => {
+        fetch('http://localhost:8080/fhir/InsurancePlan') 
+            .then(response => response.json())
+            .then(data => {
+                if (data && Array.isArray(data.entry)) {
+                    const extractedProducts = data.entry.map((entry: { resource: Product }) => {
+                        const resource = entry.resource;
+                        return {
+                            id: resource.id,
+                            language: resource.language,
+                            status: resource.status,
+                            // Add more columns as needed
+                        };
+                    });
+                    setProducts(extractedProducts);
+                } else {
+                    console.error('Invalid data format:', data);
+                }
+            })
+            .catch(error => console.error('Error fetching products:', error));
+    }, []);
+
+    const handleOpenModal = () => {
+        setOpenModal(true);
+    };
+
+    const handleCloseModal = () => {
+        setOpenModal(false);
+    };
+
+    return (
+        <DashboardCard title="Insurance Plan">
             <Box sx={{ overflow: 'auto', width: { xs: '280px', sm: 'auto' } }}>
                 <Table
                     aria-label="simple table"
@@ -71,29 +72,20 @@ const ProductPerformance = () => {
                             </TableCell>
                             <TableCell>
                                 <Typography variant="subtitle2" fontWeight={600}>
-                                    Assigned
+                                    Language
                                 </Typography>
                             </TableCell>
                             <TableCell>
                                 <Typography variant="subtitle2" fontWeight={600}>
-                                    Name
+                                    Status
                                 </Typography>
                             </TableCell>
-                            <TableCell>
-                                <Typography variant="subtitle2" fontWeight={600}>
-                                    Priority
-                                </Typography>
-                            </TableCell>
-                            <TableCell align="right">
-                                <Typography variant="subtitle2" fontWeight={600}>
-                                    Budget
-                                </Typography>
-                            </TableCell>
+                            {/* Add more table headers for other columns */}
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {products.map((product) => (
-                            <TableRow key={product.name}>
+                        {products.slice(0, 5).map((product) => (
+                            <TableRow key={product.id}>
                                 <TableCell>
                                     <Typography
                                         sx={{
@@ -105,51 +97,96 @@ const ProductPerformance = () => {
                                     </Typography>
                                 </TableCell>
                                 <TableCell>
-                                    <Box
-                                        sx={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                        }}
-                                    >
-                                        <Box>
-                                            <Typography variant="subtitle2" fontWeight={600}>
-                                                {product.name}
-                                            </Typography>
-                                            <Typography
-                                                color="textSecondary"
-                                                sx={{
-                                                    fontSize: "13px",
-                                                }}
-                                            >
-                                                {product.post}
-                                            </Typography>
-                                        </Box>
-                                    </Box>
-                                </TableCell>
-                                <TableCell>
-                                    <Typography color="textSecondary" variant="subtitle2" fontWeight={400}>
-                                        {product.pname}
+                                    <Typography variant="subtitle2" fontWeight={600}>
+                                        {product.language ?? 'NA'}
                                     </Typography>
                                 </TableCell>
                                 <TableCell>
-                                    <Chip
-                                        sx={{
-                                            px: "4px",
-                                            backgroundColor: product.pbg,
-                                            color: "#fff",
-                                        }}
-                                        size="small"
-                                        label={product.priority}
-                                    ></Chip>
+                                    <Typography variant="subtitle2" fontWeight={600}>
+                                        {product.status ?? 'NA'}
+                                    </Typography>
                                 </TableCell>
-                                <TableCell align="right">
-                                    <Typography variant="h6">${product.budget}k</Typography>
-                                </TableCell>
+                                {/* Add more table cells for other columns */}
                             </TableRow>
                         ))}
                     </TableBody>
                 </Table>
+                {products.length > 5 && (
+                    <button onClick={handleOpenModal}>View More</button> // You can replace this with your popup or modal component
+                )}
             </Box>
+            <Modal
+                open={openModal}
+                onClose={handleCloseModal}
+                aria-labelledby="full-table-modal-title"
+                aria-describedby="full-table-modal-description"
+            >
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        width: 400,
+                        maxHeight: '80%',
+                        overflowY: 'auto',
+                        bgcolor: 'background.paper',
+                        boxShadow: 24,
+                        p: 4,
+                    }}
+                >
+                    <Typography id="full-table-modal-title" variant="h6" component="h2">
+                        Full Table
+                    </Typography>
+                    <Paper>
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>
+                                        <Typography variant="subtitle2" fontWeight={600}>
+                                            Id
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Typography variant="subtitle2" fontWeight={600}>
+                                            Language
+                                        </Typography>
+                                        {/* Add more table headers for other columns */}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Typography variant="subtitle2" fontWeight={600}>
+                                            Status
+                                        </Typography>
+                                        {/* Add more table headers for other columns */}
+                                    </TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {products.map((product) => (
+                                    <TableRow key={product.id}>
+                                        <TableCell>
+                                            <Typography variant="subtitle2" fontWeight={600}>
+                                                {product.id}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="subtitle2" fontWeight={600}>
+                                                {product.language ?? 'NA'}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="subtitle2" fontWeight={600}>
+                                                {product.status ?? 'NA'}
+                                            </Typography>
+                                        </TableCell>
+                                        {/* Add more table cells for other columns */}
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </Paper>
+                </Box>
+            </Modal>
         </DashboardCard>
     );
 };
